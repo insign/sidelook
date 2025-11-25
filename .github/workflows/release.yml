@@ -1,0 +1,156 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # Job 1: Análise e Testes
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Instalar dependências
+        run: dart pub get
+
+      - name: Gerar version.g.dart
+        run: dart run tool/generate_version.dart
+
+      - name: Verificar formatação
+        run: dart format --set-exit-if-changed .
+
+      - name: Analisar código
+        run: dart analyze --fatal-infos
+
+      - name: Executar testes
+        run: dart test --concurrency=4
+
+  # Job 2: Build para cada plataforma
+  build-linux:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - run: dart pub get
+      - run: dart run tool/generate_version.dart
+
+      - name: Compilar executável
+        run: dart compile exe bin/sidelook.dart -o sidelook-linux
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sidelook-linux
+          path: sidelook-linux
+
+  build-macos:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - run: dart pub get
+      - run: dart run tool/generate_version.dart
+
+      - name: Compilar executável
+        run: dart compile exe bin/sidelook.dart -o sidelook-macos
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sidelook-macos
+          path: sidelook-macos
+
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - run: dart pub get
+      - run: dart run tool/generate_version.dart
+
+      - name: Compilar executável
+        run: dart compile exe bin/sidelook.dart -o sidelook-windows.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sidelook-windows
+          path: sidelook-windows.exe
+
+  # Job 3: Criar Release
+  release:
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download todos os artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Preparar assets
+        run: |
+          mkdir -p release-assets
+          cp artifacts/sidelook-linux/sidelook-linux release-assets/
+          cp artifacts/sidelook-macos/sidelook-macos release-assets/
+          cp artifacts/sidelook-windows/sidelook-windows.exe release-assets/
+          chmod +x release-assets/sidelook-linux release-assets/sidelook-macos
+
+      - name: Gerar Release Notes
+        id: release_notes
+        run: |
+          # Extrair versão da tag
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          # Tentar extrair do CHANGELOG, ou usar mensagem padrão
+          if [ -f CHANGELOG.md ]; then
+            # Pegar seção da versão atual
+            NOTES=$(sed -n "/^## \\[$VERSION\\]/,/^## \\[/p" CHANGELOG.md | sed '1d;$d' | head -50)
+          fi
+
+          if [ -z "$NOTES" ]; then
+            NOTES="Release $VERSION"
+          fi
+
+          # Salvar em arquivo para multiline
+          echo "$NOTES" > release_notes.txt
+
+      - name: Criar Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ steps.release_notes.outputs.version }}
+          body_path: release_notes.txt
+          files: |
+            release-assets/sidelook-linux
+            release-assets/sidelook-macos
+            release-assets/sidelook-windows.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

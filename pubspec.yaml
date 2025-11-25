@@ -1,0 +1,19 @@
+name: sidelook
+version: 0.1.0
+description: CLI para visualizar imagens em tempo real via navegador
+repository: https://github.com/insign/sidelook
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  watcher: ^1.1.0
+  args: ^2.4.0
+  http: ^1.2.0
+  path: ^1.9.0
+  yaml: ^3.1.0
+
+dev_dependencies:
+  test: ^1.25.0
+  lints: ^4.0.0
+  mocktail: ^1.0.0
