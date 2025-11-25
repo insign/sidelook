@@ -58,6 +58,13 @@ const String packageRepository = '$repository';
   final outputFile = File(p.join(outputDir.path, 'version.g.dart'));
   await outputFile.writeAsString(output);
 
+  // Formatar o arquivo gerado
+  final result = await Process.run('dart', ['format', outputFile.path]);
+  if (result.exitCode != 0) {
+    print('Aviso: Não foi possível formatar o arquivo gerado.');
+    print(result.stderr);
+  }
+
   print('✓ Gerado: ${outputFile.path}');
   print('  Nome: $name');
   print('  Versão: $version');
