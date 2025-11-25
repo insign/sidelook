@@ -123,12 +123,10 @@ jobs:
           cp artifacts/sidelook-windows/sidelook-windows.exe release-assets/
           chmod +x release-assets/sidelook-linux release-assets/sidelook-macos
 
-      - name: Gerar Release Notes
-        id: release_notes
+      - name: Gerar Release Notes e Criar Release
         run: |
           # Extrair versão da tag
           VERSION=${GITHUB_REF#refs/tags/}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
           # Tentar extrair do CHANGELOG, ou usar mensagem padrão
           if [ -f CHANGELOG.md ]; then
@@ -140,19 +138,12 @@ jobs:
             NOTES="Release $VERSION"
           fi
 
-          # Salvar em arquivo para multiline
-          echo "$NOTES" > release_notes.txt
-
-      - name: Criar Release
-        uses: softprops/action-gh-release@v1
-        with:
-          name: ${{ steps.release_notes.outputs.version }}
-          body_path: release_notes.txt
-          files: |
-            release-assets/sidelook-linux
-            release-assets/sidelook-macos
+          # Criar release usando gh CLI
+          gh release create "$VERSION" \
+            --title "$VERSION" \
+            --notes "$NOTES" \
+            release-assets/sidelook-linux \
+            release-assets/sidelook-macos \
             release-assets/sidelook-windows.exe
-          draft: false
-          prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
