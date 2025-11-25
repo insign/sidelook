@@ -4,6 +4,9 @@ import 'package:test/test.dart';
 import 'package:sidelook/src/watcher.dart';
 import 'package:path/path.dart' as p;
 
+/// Helper para indicar que um Future não será awaited intencionalmente
+void unawaited(Future<void> future) {}
+
 void main() {
   group('isImageFile', () {
     test('aceita jpg', () => expect(isImageFile('foto.jpg'), isTrue));
@@ -47,7 +50,7 @@ void main() {
       // Criar algumas imagens com diferentes timestamps
       final img1 = File(p.join(tempDir.path, 'img1.png'));
       await img1.writeAsBytes([0x89, 0x50, 0x4E, 0x47]); // PNG magic bytes
-      await Future<void>.delayed(Duration(milliseconds: 100));
+      await Future<void>.delayed(Duration(seconds: 1));
 
       final img2 = File(p.join(tempDir.path, 'img2.jpg'));
       await img2.writeAsBytes([0xFF, 0xD8, 0xFF]); // JPEG magic bytes
@@ -75,12 +78,12 @@ void main() {
       final watcher = ImageWatcher(tempDir.path);
       await watcher.start();
 
+      // Criar listener antes de adicionar arquivo
+      final completer = Completer<File>();
+      unawaited(watcher.onNewImage.first.then(completer.complete));
+
       // Dar tempo para watcher inicializar
       await Future<void>.delayed(Duration(milliseconds: 100));
-
-      // Criar listener
-      final completer = Completer<File>();
-      watcher.onNewImage.first.then<void>(completer.complete);
 
       // Criar nova imagem
       final newImg = File(p.join(tempDir.path, 'nova.png'));

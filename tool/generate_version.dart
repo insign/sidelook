@@ -1,6 +1,8 @@
 // tool/generate_version.dart
 // Executar com: dart run tool/generate_version.dart
 
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 import 'package:yaml/yaml.dart';
 import 'package:path/path.dart' as p;
@@ -56,10 +58,7 @@ const String packageRepository = '$repository';
   final outputFile = File(p.join(outputDir.path, 'version.g.dart'));
   await outputFile.writeAsString(output);
 
-  // ignore: avoid_print
   print('✓ Gerado: ${outputFile.path}');
-  // ignore: avoid_print
   print('  Nome: $name');
-  // ignore: avoid_print
   print('  Versão: $version');
 }

@@ -9,6 +9,9 @@ import 'html_assets.dart';
 import 'watcher.dart';
 import 'utils/logger.dart';
 
+/// Helper para indicar que um Future não será awaited intencionalmente
+void unawaited(Future<void> future) {}
+
 /// Servidor HTTP com suporte a WebSocket
 class ImageServer {
   ImageServer({
@@ -114,11 +117,6 @@ class ImageServer {
     unawaited(socket.done.then((_) {
       _clients.remove(socket);
     }));
-  }
-
-  // Helper para evitar warning de unawaited
-  void unawaited(Future<void> future) {
-    // Intencionalmente não aguardando
   }
 
   Future<void> _serveImage(HttpRequest request) async {
