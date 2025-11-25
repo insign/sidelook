@@ -34,116 +34,40 @@ jobs:
       - name: Executar testes
         run: dart test --concurrency=4
 
-  # Job 2: Build para cada plataforma
-  build-linux:
+  # Job 2: Build para cada plataforma e criar release
+  build:
     needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-
-      - run: dart pub get
-      - run: dart run tool/generate_version.dart
-
-      - name: Compilar executável
-        run: dart compile exe bin/sidelook.dart -o sidelook-linux
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sidelook-linux
-          path: sidelook-linux
-
-  build-macos:
-    needs: test
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-
-      - run: dart pub get
-      - run: dart run tool/generate_version.dart
-
-      - name: Compilar executável
-        run: dart compile exe bin/sidelook.dart -o sidelook-macos
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sidelook-macos
-          path: sidelook-macos
-
-  build-windows:
-    needs: test
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
-
-      - run: dart pub get
-      - run: dart run tool/generate_version.dart
-
-      - name: Compilar executável
-        run: dart compile exe bin/sidelook.dart -o sidelook-windows.exe
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sidelook-windows
-          path: sidelook-windows.exe
-
-  # Job 3: Criar Release
-  release:
-    needs: [build-linux, build-macos, build-windows]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: write
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            output: sidelook-linux
+          - os: macos-latest
+            output: sidelook-macos
+          - os: windows-latest
+            output: sidelook-windows.exe
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download todos os artifacts
-        uses: actions/download-artifact@v4
+      - uses: dart-lang/setup-dart@v1
         with:
-          path: artifacts
+          sdk: stable
 
-      - name: Preparar assets
-        run: |
-          mkdir -p release-assets
-          cp artifacts/sidelook-linux/sidelook-linux release-assets/
-          cp artifacts/sidelook-macos/sidelook-macos release-assets/
-          cp artifacts/sidelook-windows/sidelook-windows.exe release-assets/
-          chmod +x release-assets/sidelook-linux release-assets/sidelook-macos
+      - run: dart pub get
+      - run: dart run tool/generate_version.dart
 
-      - name: Gerar Release Notes e Criar Release
-        run: |
-          # Extrair versão da tag
-          VERSION=${GITHUB_REF#refs/tags/}
+      - name: Compilar executável
+        run: dart compile exe bin/sidelook.dart -o ${{ matrix.output }}
 
-          # Tentar extrair do CHANGELOG, ou usar mensagem padrão
-          if [ -f CHANGELOG.md ]; then
-            # Pegar seção da versão atual
-            NOTES=$(sed -n "/^## \\[$VERSION\\]/,/^## \\[/p" CHANGELOG.md | sed '1d;$d' | head -50)
-          fi
-
-          if [ -z "$NOTES" ]; then
-            NOTES="Release $VERSION"
-          fi
-
-          # Criar release usando gh CLI
-          gh release create "$VERSION" \
-            --title "$VERSION" \
-            --notes "$NOTES" \
-            release-assets/sidelook-linux \
-            release-assets/sidelook-macos \
-            release-assets/sidelook-windows.exe
+      - name: Criar/Atualizar Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ matrix.output }}
+          fail_on_unmatched_files: false
+          append_body: true
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
