@@ -146,13 +146,18 @@ jobs:
       - name: Debug Token Permissions
         run: |
           echo "Checking token permissions..."
-          curl -v -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/user 2>&1 | grep "x-oauth-scopes"
+          curl -v -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/user 2>&1 | grep "x-oauth-scopes" || true
 
       - name: Criar Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ steps.release_notes.outputs.version }}
+          body_path: release_notes.txt
+          files: |
+            release-assets/sidelook-linux
+            release-assets/sidelook-macos
+            release-assets/sidelook-windows.exe
+          draft: false
+          prerelease: false
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create ${{ steps.release_notes.outputs.version }} \
-            --title "${{ steps.release_notes.outputs.version }}" \
-            --notes-file release_notes.txt \
-            release-assets/*
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
